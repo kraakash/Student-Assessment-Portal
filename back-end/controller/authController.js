@@ -1,5 +1,6 @@
 import User from "../models/User.js";
 import bcrypt from 'bcrypt'
+import jwt from 'jsonwebtoken'
 
 
 //login demo
@@ -15,13 +16,52 @@ export const loginUser = async(req , res)=>{
         }
 
 
-        res.status(200).json({
+       
+        const user = await User.findOne({
+            email
+        }).select("+password");
+
+        if(!user || !password === user.password){
+            return res.status(401).json({
+                success:false,
+                message: "Invalid email or password"
+            })
+        }
+
+        const token  = jwt.sign(
+            {
+                id: user._id,
+                role: user.role
+            },
+            process.env.JWT_SECRET , 
+            {
+                expiresIn : "1d"
+            }
+        );
+
+        res.cookie("access_token", token,{
+            httpOnly: true,
+            sameSite: "strict",
+            maxAge:24 *60*60*1000
+        });
+
+        return res.status(200).json({
             success:true,
-            message: "Login controller working"
+            message: "Login successfull",
+            user:{
+                id:user._id,
+               // name: user.name,
+                email:user.email,
+                role:user.role
+            }
         })
-    }catch(erroe){
+
+
+
+
+    }catch(error){
         res.status(500).json({
-            sucess: false,
+            success: false,
             message: "Internal server error"
         });
     }
